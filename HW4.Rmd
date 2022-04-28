@@ -1,0 +1,69 @@
+---
+title: "131-HW4"
+output: html_document
+---
+
+```{r}
+library(tidymodels)
+library(ISLR) 
+library(ISLR2) 
+library(discrim)
+library(poissonreg)
+library(corrr)
+library(klaR) 
+library(dplyr)
+library(MASS)
+library(pROC)
+tidymodels_prefer()
+library(readr)
+titanic <- read_csv("~/Downloads/homework-4/data/titanic.csv")
+View(titanic)
+
+```
+# Question 1
+```{r}
+titanic$survived <- factor(titanic$survived, levels = c("Yes","No"))
+titanic$pclass <- as.factor(titanic$pclass)
+
+set.seed(891)
+
+titanic_split <- initial_split(titanic, prop = 0.8, strata = survived)
+titanic_train <- training(titanic_split)
+titanic_test <- testing(titanic_split)
+
+#verify 
+dim(titanic_train)
+dim(titanic_test)
+```
+
+titanic_train: 712 observations of 12 variables
+titanic_test: 179 observations of 12 variables
+
+# Question 2
+```{r}
+lm_spec <- linear_reg() %>%
+  set_mode("regression") %>%
+  set_engine("lm")
+
+#recipe from Homework 3
+titanic_tuned_rec <- recipe(survived ~ pclass + sex + age + sib_sp + parch + fare, data = titanic_train) %>%
+  step_impute_linear(age) %>%
+  step_dummy(all_nominal_predictors()) %>%
+  step_interact(~starts_with("sex"):fare) %>%
+  step_interact(~age:fare) %>%
+  step_normalize(all_predictors()) %>%
+  step_poly(pclass + sex + age + sib_sp + parch + fare, degree = tune())
+
+titanic_tuned_wf <- workflow() %>%
+  add_recipe(titanic_tuned_rec) %>%
+  add_model(lm_spec)
+
+Auto_folds <- vfold_cv(titanic_train, v = 10)
+Auto_folds
+```
+
+# Question 3
+```{r}
+
+```
+
