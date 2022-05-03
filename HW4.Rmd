@@ -14,12 +14,14 @@ library(klaR)
 library(dplyr)
 library(MASS)
 library(pROC)
+library(tune)
 tidymodels_prefer()
 library(readr)
 titanic <- read_csv("~/Downloads/homework-4/data/titanic.csv")
 View(titanic)
 
 ```
+
 # Question 1
 ```{r}
 titanic$survived <- factor(titanic$survived, levels = c("Yes","No"))
@@ -39,31 +41,101 @@ dim(titanic_test)
 titanic_train: 712 observations of 12 variables
 titanic_test: 179 observations of 12 variables
 
-# Question 2
 ```{r}
-lm_spec <- linear_reg() %>%
-  set_mode("regression") %>%
-  set_engine("lm")
-
-#recipe from Homework 3
-titanic_tuned_rec <- recipe(survived ~ pclass + sex + age + sib_sp + parch + fare, data = titanic_train) %>%
+#recipe 
+titanic_recipe <- recipe(survived ~ pclass + sex + age + sib_sp + parch + fare, data = titanic_train) %>%
   step_impute_linear(age) %>%
   step_dummy(all_nominal_predictors()) %>%
   step_interact(~starts_with("sex"):fare) %>%
   step_interact(~age:fare) %>%
   step_normalize(all_predictors()) %>%
-  step_poly(pclass + sex + age + sib_sp + parch + fare, degree = tune())
+  step_poly(., degree = tune())
+```
 
-titanic_tuned_wf <- workflow() %>%
-  add_recipe(titanic_tuned_rec) %>%
-  add_model(lm_spec)
+# Question 2
+``` {r}
+#folds
+titanic_folds <- vfold_cv(titanic_train, v=10)
+titanic_folds
 
-Auto_folds <- vfold_cv(titanic_train, v = 10)
-Auto_folds
 ```
 
 # Question 3
-```{r}
 
+In Question 2, we are using the k-fold cross validation to estimate the skill of the model on new data. This resampling procedure has a single parameter called k that refers to the number of groups that a given data sample is to be split into. Sometimes it is preferred to use this method over a simple test/train split because it is simple to understand and generally results in a less biased/optimistic estimate of the model skill. If we were to use the entire training set, the resampling method used would be the "validation set" approach. 
+
+# Question 4
+```{r}
+#LOG
+log_reg <- logistic_reg() %>% 
+  set_engine("glm") %>% 
+  set_mode("classification")
+
+log_wkflow <- workflow() %>% 
+  add_model(log_reg) %>% 
+  add_recipe(titanic_recipe)
+
+#LDA 
+lda_mod <- discrim_linear() %>% 
+  set_mode("classification") %>% 
+  set_engine("MASS")
+
+lda_wkflow <- workflow() %>% 
+  add_model(lda_mod) %>% 
+  add_recipe(titanic_recipe)
+
+#QDA
+qda_mod <- discrim_quad() %>% 
+  set_mode("classification") %>% 
+  set_engine("MASS")
+
+qda_wkflow <- workflow() %>% 
+  add_model(qda_mod) %>% 
+  add_recipe(titanic_recipe)
+
+```
+Typically, the k-fold cross-validation procedure involves fitting a model on all folds (training) but one (testing), so 3 models x 9 folds = 27 models total. 
+
+# Question 5
+```{r}
+degree_grid <- grid_regular(degree(range = c(1, 10)), levels = 10)
+degree_grid
+
+#fit log
+tune_res <- tune_grid(
+  object = log_wkflow, 
+  resamples = titanic_folds, 
+  grid = degree_grid,
+  control = control_grid(verbose = TRUE)
+)
+
+#fit LDA
+tune_res2 <- tune_grid(
+  object = lda_wkflow, 
+  resamples = titanic_folds, 
+  grid = degree_grid,
+  control = control_grid(verbose = TRUE)
+)
+
+#fit QDA
+
+tune_res3 <- tune_grid(
+  object = qda_wkflow, 
+  resamples = titanic_folds, 
+  grid = degree_grid,
+  control = control_grid(verbose = TRUE)
+)
+
+autoplot(tune_res)
+autoplot(tune_res2)
+autoplot(tune_res3)
+
+```
+
+# Question 6
+```{r}
+collect_metrics(tune_res)
+collect_metrics(tune_res2)
+collect_metrics(tune_res3)
 ```
 
