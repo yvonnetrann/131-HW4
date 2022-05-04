@@ -1,6 +1,8 @@
 ---
 title: "131-HW4"
-output: html_document
+output:
+  pdf_document: default
+  html_document: default
 ---
 
 ```{r}
@@ -42,6 +44,12 @@ titanic_train: 712 observations of 12 variables
 titanic_test: 179 observations of 12 variables
 
 ```{r}
+#linear model
+lm_spec <- linear_reg() %>%
+  set_mode("regression") %>%
+  set_engine("lm")
+
+
 #recipe 
 titanic_recipe <- recipe(survived ~ pclass + sex + age + 
                            sib_sp + parch + fare, titanic_train) %>% 
@@ -107,6 +115,7 @@ tune_res <- tune_grid(
   grid = degree_grid,
   control = control_grid(verbose = TRUE)
 )
+tune_res
 
 #fit LDA
 tune_res2 <- tune_grid(
@@ -115,7 +124,7 @@ tune_res2 <- tune_grid(
   grid = degree_grid,
   control = control_grid(verbose = TRUE)
 )
-
+tune_res2
 #fit QDA
 
 tune_res3 <- tune_grid(
@@ -124,10 +133,7 @@ tune_res3 <- tune_grid(
   grid = degree_grid,
   control = control_grid(verbose = TRUE)
 )
-
-autoplot(tune_res)
-autoplot(tune_res2)
-autoplot(tune_res3)
+tune_res3
 
 ```
 
@@ -137,4 +143,30 @@ collect_metrics(tune_res)
 collect_metrics(tune_res2)
 collect_metrics(tune_res3)
 ```
+The logistic regression model seemed to have performed the best seeing as it is the model with the best accuracy.
 
+# Question 7
+```{r}
+select_by_one_std_err(tune_res, degree, metric = "accuracy")
+best_degree <- select_by_one_std_err(tune_res, degree, metric = "accuracy")
+final_wf <- finalize_workflow(log_wkflow, best_degree)
+final_wf
+
+final_fit <- fit(final_wf, titanic_train)
+final_fit
+```
+# Question 8
+```{r}
+testing_pred <- 
+  predict(final_fit, titanic_train) %>% 
+  bind_cols(predict(final_fit, titanic_train, type = "prob")) %>% 
+  bind_cols(titanic_train %>% 
+              select(survived))
+testing_pred
+
+augment(final_fit, new_data = titanic_test) %>%
+  accuracy(truth = survived, estimate = .pred_class)
+```
+The performance metrics from the test set are much closer to the performance metrics computed using resampling. Resampling allowed for the simulation of how well the model will perform on new data, and the test set acts as the final, unbiased check for the model’s performance. 
+
+ 
