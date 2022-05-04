@@ -43,12 +43,11 @@ titanic_test: 179 observations of 12 variables
 
 ```{r}
 #recipe 
-titanic_recipe <- recipe(survived ~ pclass + sex + age + sib_sp + parch + fare, data = titanic_train) %>%
-  step_impute_linear(age) %>%
-  step_dummy(all_nominal_predictors()) %>%
-  step_interact(~starts_with("sex"):fare) %>%
-  step_interact(~age:fare) %>%
-  step_normalize(all_predictors()) %>%
+titanic_recipe <- recipe(survived ~ pclass + sex + age + 
+                           sib_sp + parch + fare, titanic_train) %>% 
+  step_impute_linear(age, impute_with = imp_vars(sib_sp)) %>% 
+  step_dummy(all_nominal_predictors()) %>% 
+  step_interact(~ starts_with("sex"):age + age:fare) %>%
   step_poly(., degree = tune())
 ```
 
