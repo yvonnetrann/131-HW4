@@ -2,7 +2,6 @@
 title: "131-HW4"
 output:
   pdf_document: default
-  html_document: default
 ---
 
 ```{r}
